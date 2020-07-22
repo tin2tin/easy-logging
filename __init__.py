@@ -19,15 +19,15 @@
 bl_info = {
     "name": "Easy Logging beta",
     "author": "Nicolas Priniotakis (Nikos), David McSween",
-    "version": (0,2,1,5),
+    "version": (0, 2, 1, 5),
     "blender": (2, 80, 0),
-    "api": 44539,
     "category": "Sequencer",
     "location": "Sequencer > UI > Easy Logging",
     "description": "Logging system for the Video Sequence Editor",
     "warning": "",
-    "wiki_url": "",
-    "tracker_url": "",}
+    "wiki_url": "https://github.com/Nikos-Prinios/easy-logging",
+    "tracker_url": "",
+}
 
 # -- IMPORT ------------------------------------------------------------
 import bpy, random, time, os, ntpath, getpass
@@ -37,12 +37,15 @@ from bpy.utils import register_class
 from bpy.utils import unregister_class
 
 # -- Custom Properties & VARIABLES -------------------------------------
-bpy.types.Object.tags: bpy.props.StringProperty()    
-bpy.types.Object.inpoint: bpy.props.IntProperty()   
-bpy.types.Object.outpoint: bpy.props.IntProperty() 
-bpy.types.Scene.local_edit: bpy.props.BoolProperty(name="Local Edit",description="Edit in the opened sequencer",default = True)
+bpy.types.Object.tags: bpy.props.StringProperty()
+bpy.types.Object.inpoint: bpy.props.IntProperty()
+bpy.types.Object.outpoint: bpy.props.IntProperty()
+bpy.types.Scene.local_edit: bpy.props.BoolProperty(
+    name="Local Edit",
+    description="Edit in the opened sequencer",
+    default=True)
 
-bad_obj_types = ['CAMERA','LIGHT','MESH']
+bad_obj_types = ['CAMERA', 'LIGHT', 'MESH']
 global clip, clip_object, main_scene, log, fps, log_file, me, header_colors, current_scene
 current_scene = ''
 fps = 30
@@ -58,6 +61,7 @@ fps = 30
 #zoom function : zoom ( x factor ) on the active strip
 import bpy
 
+
 def zoom(factor):
     # not useful here, but maybe later
     scene = bpy.context.scene
@@ -66,7 +70,7 @@ def zoom(factor):
     new = bpy.context.selected_sequences
 
     if new:
-        bpy.ops.sequencer.select_all(action = "DESELECT")
+        bpy.ops.sequencer.select_all(action="DESELECT")
         ''' variables '''
         frame = new[0].frame_final_start
         length = new[0].frame_final_end - frame
@@ -74,14 +78,20 @@ def zoom(factor):
         end = frame + length * factor
         chan = new[0].channel
         ''' avoiding a big mess '''
-        if start < scene.frame_start : start = scene.frame_start
-        if end > scene.frame_end : end = scene.frame_end
+        if start < scene.frame_start: start = scene.frame_start
+        if end > scene.frame_end: end = scene.frame_end
         ''' adding the temporary strip and delete it after the zoom '''
-        bpy.ops.sequencer.effect_strip_add(frame_start=start, frame_end=end, type='COLOR', color=(1,1,1), overlap=True, channel=chan)
+        bpy.ops.sequencer.effect_strip_add(
+            frame_start=start,
+            frame_end=end,
+            type='COLOR',
+            color=(1, 1, 1),
+            overlap=True,
+            channel=chan)
         bpy.ops.sequencer.view_selected()
         bpy.ops.sequencer.delete()
         ''' reselect the new clips '''
-        for s in new :
+        for s in new:
             s.select = True
 
     bpy.context.area.type = original_type
@@ -93,30 +103,37 @@ def meta():
     list = []
     strips = bpy.context.scene.sequence_editor.sequences
     for s in strips:
-        if s.type != 'COLOR' :
+        if s.type != 'COLOR':
             list.append(s)
-    if len(list) == 2 :
-        if strips[0].name.split('.',-1)[0] == strips[1].name.split('.',-1)[0] :
+    if len(list) == 2:
+        if strips[0].name.split('.', -1)[0] == strips[1].name.split('.',
+                                                                    -1)[0]:
             if strips[0].type == 'MOVIE' and strips[1].type == 'SOUND':
                 return meta
             elif strips[1].type == 'MOVIE' and strips[0].type == 'SOUND':
                 return meta
-            else : return True
-        else : return True
-    elif len(list) == 1 : return meta
-    else : return True
+            else:
+                return True
+        else:
+            return True
+    elif len(list) == 1:
+        return meta
+    else:
+        return True
+
 
 # the list of unique tags
 def log_create_tags_list():
     global log, list_of_tags
     list_of_tags = set()
     for clip_file in log:
-        if len(clip_file) > 1 :
+        if len(clip_file) > 1:
             clip = clip_file[0]
             for tag_obj in clip_file[1:]:
                 tag = tag_obj[0].split('.', 1)[0]
                 list_of_tags.add(tag)
     print(list_of_tags)
+
 
 # writes the list of clips associated with a tag
 def log_clips_for_tag():
@@ -125,7 +142,7 @@ def log_clips_for_tag():
     for t in list_of_tags:
         output += '\n' + u(t).upper() + '\n'
         for clip_file in log:
-            if len(clip_file) > 1 :
+            if len(clip_file) > 1:
                 clip = clip_file[0]
                 for tag_obj in clip_file[1:]:
                     tag = tag_obj[0].split('.', 1)[0]
@@ -133,8 +150,11 @@ def log_clips_for_tag():
                     outpoint = tag_obj[2]
                     length = outpoint - inpoint
                     if tag == t:
-                        output += (clip[0].split('#')[0] + '\t' + tc(inpoint) + '\t' + tc(outpoint) + '\t' + tc(length) + '\n')
+                        output += (
+                            clip[0].split('#')[0] + '\t' + tc(inpoint) + '\t' +
+                            tc(outpoint) + '\t' + tc(length) + '\n')
     return output
+
 
 # list of clips
 def log_list_of_clips():
@@ -142,14 +162,15 @@ def log_list_of_clips():
     output = ''
     for clip_file in log:
         clip = clip_file[0]
-        output += (clip[0].split('#')[0] + '\t' + tc(clip[1]) + '\t' + tc(clip[2]) + '')
+        output += (clip[0].split('#')[0] + '\t' + tc(clip[1]) + '\t' +
+                   tc(clip[2]) + '')
         t = set()
         for tag_obj in clip_file[1:]:
             t.add(tag_obj[0].split('.', 1)[0])
-        if len(t) > 0 :
+        if len(t) > 0:
             output += '\t#' + ', #'.join(t) + '\n'
         output += '\n'
-    output +='\n'
+    output += '\n'
     return output
 
 
@@ -157,8 +178,9 @@ def log_list_of_clips():
 def u(the_string):
     score = ''
     for x in str(the_string):
-        score=score + '-'
+        score = score + '-'
     return the_string + '\n' + score
+
 
 # Timecode conversion
 def tc(fn):
@@ -166,7 +188,9 @@ def tc(fn):
     ff = fn % fps
     s = fn // fps
     result = s // 3600, s // 60 % 60, s % 60, ff
-    return ('['+ str(result[0]).zfill(2) + ':' + str(result[1]).zfill(2) + ':' + str(result[2]).zfill(2) + ':' + str(result[3]).zfill(2) + ']')
+    return ('[' + str(result[0]).zfill(2) + ':' + str(result[1]).zfill(2) + ':'
+            + str(result[2]).zfill(2) + ':' + str(result[3]).zfill(2) + ']')
+
 
 # Check if the path is already registered and add it if not
 def add_path(path):
@@ -174,127 +198,140 @@ def add_path(path):
     path_list.add(path)
     #print (path_list)
 
+
 def convert_path(original_user, me, path):
     # case windows
     path_ini = 'C:\\Users\\' + original_user + '\\'
     if path.startswith(path_ini):
         file_path = path[len(path_ini):]
-        if 'Win' in my_os :
+        if 'Win' in my_os:
             new_path = os.path.expanduser('~') + '\\' + file_path
             return new_path
-        else :
-            file_path = file_path.replace('\\','/')
+        else:
+            file_path = file_path.replace('\\', '/')
             new_path = os.path.expanduser('~') + '/' + file_path
             return new_path
 
     # Case osx
     path_ini = '/Users/' + original_user + '/'
     path_vol = '/Volumes/'
-    
+
     if path.startswith(path_ini):
         file_path = path[len(path_ini):]
-        if 'Win' in my_os :
-            file_path = file_path.replace('/','\\')
+        if 'Win' in my_os:
+            file_path = file_path.replace('/', '\\')
             new_path = os.path.expanduser('~') + '\\' + file_path
             return new_path
-        else :
+        else:
             new_path = os.path.expanduser('~') + '/' + file_path
             return new_path
 
     elif path.startswith(path_vol):
-        if 'Linux' in my_os :
-            return path.replace('Volumes/','media/' + me + '/')
-        elif 'Darwin' in my_os :
-            return path.replace(original_user,me,1)
-    
+        if 'Linux' in my_os:
+            return path.replace('Volumes/', 'media/' + me + '/')
+        elif 'Darwin' in my_os:
+            return path.replace(original_user, me, 1)
+
     # Case linux
     path_ini = '/home/' + original_user + '/'
-    path_vol = '/media/'+ original_user + '/'
-    
+    path_vol = '/media/' + original_user + '/'
+
     if path.startswith(path_ini):
         file_path = path[len(path_ini):]
-        if 'Win' in my_os :
-            file_path = file_path.replace('/','\\')
+        if 'Win' in my_os:
+            file_path = file_path.replace('/', '\\')
             new_path = os.path.expanduser('~') + '\\' + file_path
             return new_path
-        else :
+        else:
             new_path = os.path.expanduser('~') + '/' + file_path
             return new_path
-    
+
     elif path.startswith(path_vol):
-        if 'Linux' in my_os :
-            return path.replace(original_user,me)
-        elif 'Darwin' in my_os :
-            return path.replace(path_vol, '/Volumes/',1)
+        if 'Linux' in my_os:
+            return path.replace(original_user, me)
+        elif 'Darwin' in my_os:
+            return path.replace(path_vol, '/Volumes/', 1)
     else:
         return path
 
+
 # Update the log file
-def update_log_file(): 
+def update_log_file():
     global log_file, log, path_list, user
     user = getpass.getuser()
-    pickle.dump((path_list, user, log), open( log_file, "wb" ) )
+    pickle.dump((path_list, user, log), open(log_file, "wb"))
+
 
 # extract the filename from a path
 def filename(path):
     head, tail = ntpath.split(path)
     return tail or ntpath.basename(head)
 
+
 # Add a new clip
-def add_clip(clip,inpoint,outpoint):
+def add_clip(clip, inpoint, outpoint):
     size = os.stat(clip).st_size
     clip_name = filename(clip) + '#' + str(size)
-    print (clip_name)
-    log.append([[clip_name,inpoint,outpoint]])
+    print(clip_name)
+    log.append([[clip_name, inpoint, outpoint]])
+
 
 # Add tag to a referenced clip
-def add_tag(clip,name,inpoint,outpoint):
-    tag = [name,inpoint,outpoint]
-    if isinstance(clip,str):
+def add_tag(clip, name, inpoint, outpoint):
+    tag = [name, inpoint, outpoint]
+    if isinstance(clip, str):
         exists, id = clip_exists(clip)
     else:
         id = clip
     log[id].append(tag)
- 
+
+
 # Check if a clip is already referenced and return its id
 def clip_exists(clip):
-    try: size = os.stat(clip).st_size
-    except: return (False, -1)
+    try:
+        size = os.stat(clip).st_size
+    except:
+        return (False, -1)
     f = filename(clip) + '#' + str(size)
     for x in log:
         if f in x[0][0]:
-            return (True,log.index(x))
+            return (True, log.index(x))
     return (False, -1)
 
+
 # Update a clip in point
-def update_inpoint(clip,inpoint):
-    exists,id = clip_exists(clip)
+def update_inpoint(clip, inpoint):
+    exists, id = clip_exists(clip)
     if exists:
         log[id][0][1] = inpoint
-        
+
+
 # Update a clip out point
-def update_outpoint(clip,outpoint):
-    exists,id = clip_exists(clip)
+def update_outpoint(clip, outpoint):
+    exists, id = clip_exists(clip)
     if exists:
         log[id][0][2] = outpoint
 
+
 # Update a clip in & out points
-def update_clip(clip,inpoint,outpoint):
-    update_inpoint(clip,inpoint)
-    update_outpoint(clip,outpoint)
+def update_clip(clip, inpoint, outpoint):
+    update_inpoint(clip, inpoint)
+    update_outpoint(clip, outpoint)
+
 
 # Update a tag or create it
-def update_tag(clip,tag,inpoint,outpoint):
+def update_tag(clip, tag, inpoint, outpoint):
     updated = False
-    exists,id = clip_exists(clip)
+    exists, id = clip_exists(clip)
     if exists:
         for x in log[id][1:]:
-            if x[0] == tag :
+            if x[0] == tag:
                 x[1] = inpoint
                 x[2] = outpoint
                 updated = True
     if not updated:
-        add_tag(id,tag,inpoint,outpoint)
+        add_tag(id, tag, inpoint, outpoint)
+
 
 # Return the list of tags of a clip
 def tag_list(clip):
@@ -302,26 +339,29 @@ def tag_list(clip):
     tags = []
     if exists:
         for y in log[id][1:]:
-            tags.append([y[0],y[1],y[2]])
+            tags.append([y[0], y[1], y[2]])
     return tags
+
 
 # Remove a tag from a clip
 def remove_tag(clip, tag):
-    exists,id = clip_exists(clip)
+    exists, id = clip_exists(clip)
     if exists:
         for x in log[id][1:]:
-            if x[0] == tag :
+            if x[0] == tag:
                 i = log[id].index(x)
                 log[id].pop(i)
 
+
 # Return the clip_object [name,in,out]
 def get_clip(clip):
-    exists,id = clip_exists(clip)
+    exists, id = clip_exists(clip)
     if exists:
-        return [clip,log[id][0][1],log[id][0][2]]
+        return [clip, log[id][0][1], log[id][0][2]]
     else:
-        add_clip(clip,-1,-1)
-    return [clip,-1,-1]
+        add_clip(clip, -1, -1)
+    return [clip, -1, -1]
+
 
 # Returns TRUE if the scene already exists
 def scene_exists(scene):
@@ -330,22 +370,25 @@ def scene_exists(scene):
             return True
     return False
 
+
 # Create the 'Editing table' scene
 def reset_editing_table():
     global main_scene, fps
     if scene_exists('Editing table'):
         bpy.context.screen.scene = bpy.data.scenes['Editing table']
-        bpy.ops.scene.delete()                                    
+        bpy.ops.scene.delete()
     new_scene = bpy.data.scenes.new('Editing table')
     new_scene.render.fps = main_scene.render.fps
     new_scene.use_audio_sync = True
     new_scene.use_frame_drop = True
     return True
-      
+
+
 # Define the main scene
 def set_as_main_scene():
     global main_scene
     main_scene = bpy.context.screen.scene
+
 
 # Set active scene to main
 def goto_main_scene():
@@ -359,19 +402,27 @@ def goto_main_scene():
                 return False
         else:
             return False
-    except: return False
+    except:
+        return False
+
 
 # Create tag strip
-def new_tag_strip(inpoint,outpoint,name):
+def new_tag_strip(inpoint, outpoint, name):
     if bpy.context.screen.scene == bpy.data.scenes['Editing table']:
         orginal_context = bpy.context.area.type
         bpy.context.area.type = "SEQUENCE_EDITOR"
         seq = bpy.ops.sequencer
-        seq.effect_strip_add(frame_start=inpoint, frame_end=outpoint, type='COLOR', color=(random.uniform(0.5,1),random.uniform(0.5,1),1), overlap=False)
+        seq.effect_strip_add(
+            frame_start=inpoint,
+            frame_end=outpoint,
+            type='COLOR',
+            color=(random.uniform(0.5, 1), random.uniform(0.5, 1), 1),
+            overlap=False)
         new_strip = bpy.context.scene.sequence_editor.active_strip
         new_strip.name = name
         new_strip.blend_alpha = 0
         bpy.context.area.type = orginal_context
+
 
 # Update clip and tags in the log
 def update_log():
@@ -385,86 +436,94 @@ def update_log():
                 tag = s.name
                 inpoint = s.frame_start
                 outpoint = s.frame_final_end
-                update_tag(clip,tag,inpoint,outpoint)
-    except: pass
+                update_tag(clip, tag, inpoint, outpoint)
+    except:
+        pass
     # delete removed tags
     old_tag_list = tag_list(clip)
     for x in old_tag_list:
         if not x[0] in new_tag_list:
-            remove_tag(clip,x[0])
+            remove_tag(clip, x[0])
 
     # clip
     inpoint = bpy.data.scenes['Editing table'].frame_start
     outpoint = bpy.data.scenes['Editing table'].frame_end
-    update_clip(clip,inpoint,outpoint)
+    update_clip(clip, inpoint, outpoint)
     # Update the log file on disk
     update_log_file()
+
 
 # Cool function written by Leon95
 def header_refresh(self, context):
     global current_scene
-    scene_name = bpy.context.screen.scene.name
+    scene_name = bpy.context.window.scene.name
     try:
-        if current_scene == scene_name : return
+        if current_scene == scene_name: return
         current_scene = scene_name
         pref = bpy.context.preferences
-        header_colors = [(0.035,0.591,0.627), (0.631,0.694,0.318), (0.447,0.447,0.447)]
-        if scene_name == 'Editing table': pref.themes[0].info.space.header = header_colors[0]
-        elif scene_name.startswith("Tag: "): pref.themes[0].info.space.header = header_colors[1]
-        else: pref.themes[0].info.space.header = header_colors[2]
-    except: pass
+        header_colors = [(0.035, 0.591, 0.627), (0.631, 0.694, 0.318),
+                         (0.447, 0.447, 0.447)]
+        if scene_name == 'Editing table':
+            pref.themes[0].info.space.header = header_colors[0]
+        elif scene_name.startswith("Tag: "):
+            pref.themes[0].info.space.header = header_colors[1]
+        else:
+            pref.themes[0].info.space.header = header_colors[2]
+    except:
+        pass
 
-# Returns the type of the selected element in the browser          
-# Cool function written by Björn Sonnenschein 
+
+# Returns the type of the selected element in the browser
+# Cool function written by Björn Sonnenschein
 def detect_strip_type(filepath):
 
     imb_ext_movie = [
-    ".avi",
-    ".flc",
-    ".mov",
-    ".movie",
-    ".mp4",
-    ".m4v",
-    ".m2v",
-    ".m2t",
-    ".m2ts",
-    ".mts",
-    ".mv",
-    ".avs",
-    ".wmv",
-    ".ogv",
-    ".dv",
-    ".mpeg",
-    ".mpg",
-    ".mpg2",
-    ".vob",
-    ".mkv",
-    ".flv",
-    ".divx",
-    ".xvid",
-    ".mxf",
+        ".avi",
+        ".flc",
+        ".mov",
+        ".movie",
+        ".mp4",
+        ".m4v",
+        ".m2v",
+        ".m2t",
+        ".m2ts",
+        ".mts",
+        ".mv",
+        ".avs",
+        ".wmv",
+        ".ogv",
+        ".dv",
+        ".mpeg",
+        ".mpg",
+        ".mpg2",
+        ".vob",
+        ".mkv",
+        ".flv",
+        ".divx",
+        ".xvid",
+        ".mxf",
     ]
 
     imb_ext_audio = [
-    ".wav",
-    ".ogg",
-    ".oga",
-    ".mp3",
-    ".mp2",
-    ".ac3",
-    ".aac",
-    ".flac",
-    ".wma",
-    ".eac3",
-    ".aif",
-    ".aiff",
-    ".m4a",
+        ".wav",
+        ".ogg",
+        ".oga",
+        ".mp3",
+        ".mp2",
+        ".ac3",
+        ".aac",
+        ".flac",
+        ".wma",
+        ".eac3",
+        ".aif",
+        ".aiff",
+        ".m4a",
     ]
-    
-    if '#' in filepath :
+
+    if '#' in filepath:
         extension = filepath.split('#')[0]
         extension = '.' + extension.split('.')[1]
-    else :
+    else:
         extension = os.path.splitext(filepath)[1]
     extension = extension.lower()
     if extension in imb_ext_movie:
@@ -475,8 +534,9 @@ def detect_strip_type(filepath):
         type = 'OTHER'
     return type
 
+
 # import a trimed clip into a scene
-def import_clip(scene,clip,inpoint,outpoint,mark):
+def import_clip(scene, clip, inpoint, outpoint, mark):
     global path_list
     original_type = bpy.context.area.type
     bpy.context.area.type = "SEQUENCE_EDITOR"
@@ -491,115 +551,130 @@ def import_clip(scene,clip,inpoint,outpoint,mark):
                 if os.path.isfile(filepath):
                     if (file_type == "MOVIE"):
                         try:
-                            bpy.ops.sequencer.movie_strip_add(filepath=filepath, frame_start=frame)
-                        except: pass
+                            bpy.ops.sequencer.movie_strip_add(
+                                filepath=filepath, frame_start=frame)
+                        except:
+                            pass
                     elif (file_type == "SOUND"):
                         try:
-                            bpy.ops.sequencer.sound_strip_add(filepath=filepath, frame_start=frame)
-                        except: pass
+                            bpy.ops.sequencer.sound_strip_add(
+                                filepath=filepath, frame_start=frame)
+                        except:
+                            pass
                     break
-        else :
+        else:
             if (file_type == "MOVIE"):
                 try:
-                    bpy.ops.sequencer.movie_strip_add(filepath=clip, frame_start=frame)
-                except: pass
+                    bpy.ops.sequencer.movie_strip_add(
+                        filepath=clip, frame_start=frame)
+                except:
+                    pass
             if (file_type == "SOUND"):
                 try:
-                    bpy.ops.sequencer.sound_strip_add(filepath=clip, frame_start=frame)
-                except: pass
+                    bpy.ops.sequencer.sound_strip_add(
+                        filepath=clip, frame_start=frame)
+                except:
+                    pass
 
-        length = outpoint - inpoint 
+        length = outpoint - inpoint
         try:
             for s in bpy.context.selected_sequences:
                 s.frame_final_start = frame + inpoint
                 s.frame_final_end = frame + outpoint
-            bpy.ops.sequencer.snap(frame = bpy.context.scene.frame_current)
-            if mark :
+            bpy.ops.sequencer.snap(frame=bpy.context.scene.frame_current)
+            if mark:
                 bpy.ops.marker.add()
-                bpy.ops.marker.rename(name=os.path.basename(clip).split('#')[0])
+                bpy.ops.marker.rename(
+                    name=os.path.basename(clip).split('#')[0])
             bpy.context.scene.frame_current += length
-            if mark :
+            if mark:
                 bpy.context.scene.frame_end = bpy.context.scene.frame_current
-        except: pass
+        except:
+            pass
 
     bpy.context.screen.scene = original_scene
     bpy.context.area.type = original_type
 
+
 # Delete the tag scenes
 def delete_the_tag_scenes():
-    original_scene = bpy.context.screen.scene
+    original_scene = bpy.context.window.scene
     for i in bpy.data.scenes:
-        if i.name.startswith('Tag: ') :
+        if i.name.startswith('Tag: '):
             bpy.context.screen.scene = i
             bpy.ops.scene.delete()
-    bpy.context.screen.scene = original_scene 
+    bpy.context.window.scene = original_scene
+
 
 # Create the tag scenes
 def create_tag_scenes():
     original_scene = bpy.context.screen.scene
     for i in bpy.data.scenes:
-        if i.name.startswith('Tag: ') :
+        if i.name.startswith('Tag: '):
             bpy.context.screen.scene = i
-            bpy.ops.scene.delete() 
+            bpy.ops.scene.delete()
     for clip_file in log:
-        if len(clip_file) > 1 :
+        if len(clip_file) > 1:
             for tag_obj in clip_file[1:]:
                 tag = 'Tag: ' + tag_obj[0].split('.', 1)[0]
                 inpoint = tag_obj[1]
                 outpoint = tag_obj[2]
-                length = outpoint-inpoint
+                length = outpoint - inpoint
                 if not scene_exists(tag):
                     new_scene = bpy.data.scenes.new(tag)
                     new_scene.render.fps = original_scene.render.fps
                     new_scene.use_audio_sync = True
                     new_scene.use_frame_drop = True
                 scene = bpy.data.scenes[tag]
-                import_clip(scene, (clip_file[0][0]).split('#')[0], inpoint, outpoint, True)
+                import_clip(scene, (clip_file[0][0]).split('#')[0], inpoint,
+                            outpoint, True)
 
     original_type = bpy.context.area.type
     bpy.context.area.type = "SEQUENCE_EDITOR"
     for i in bpy.data.scenes:
-        if i.name.startswith('Tag: ') :
+        if i.name.startswith('Tag: '):
             bpy.context.screen.scene = i
             try:
-                if len(bpy.context.scene.sequence_editor.sequences) > 0 :
+                if len(bpy.context.scene.sequence_editor.sequences) > 0:
                     bpy.ops.sequencer.view_all()
                 else:
                     bpy.ops.scene.delete()
-            except: pass
+            except:
+                pass
 
     bpy.context.area.type = original_type
     bpy.context.screen.scene = original_scene
+
 
 # Create new log file
 def create_new_log_file():
     global log_file
     log[:] = []
     filename = 'Easy-Logging-log-file'
-    new_name = filename+' [' + time.strftime("%x") + '].ez'
-    new_name = new_name.replace('/','-')
+    new_name = filename + ' [' + time.strftime("%x") + '].ez'
+    new_name = new_name.replace('/', '-')
     directory = os.path.expanduser('~/Easy-logging files')
     filename = os.path.expanduser('~/%s.ez' % filename)
     if os.path.isfile(filename):
         if not os.path.exists(directory):
             os.makedirs(directory)
-        os.rename(filename,directory + '/' + new_name)
+        os.rename(filename, directory + '/' + new_name)
     update_log_file()
+
 
 # Trim an area regarding the IN and OUT points
 def trim_area(scene, inpoint, outpoint):
     strips = bpy.context.scene.sequence_editor.sequences
     try:
-        bpy.ops.sequencer.select_all(action = "SELECT")
+        bpy.ops.sequencer.select_all(action="SELECT")
         bpy.context.scene.frame_current = inpoint
         bpy.ops.sequencer.cut(frame=inpoint, type='SOFT', side='LEFT')
         bpy.ops.sequencer.delete()
     except:
         pass
 
-    
     try:
-        bpy.ops.sequencer.select_all(action = "SELECT")
+        bpy.ops.sequencer.select_all(action="SELECT")
         bpy.context.scene.frame_current = outpoint
         bpy.ops.sequencer.cut(frame=outpoint, type='SOFT', side='RIGHT')
         bpy.ops.sequencer.delete()
@@ -607,6 +682,7 @@ def trim_area(scene, inpoint, outpoint):
         pass
 
     bpy.context.scene.frame_current = inpoint
+
 
 # Initialization ---------------------------------------------------------
 
@@ -622,36 +698,37 @@ my_os = platform.system()
 log_file = os.path.expanduser('~/%s.ez' % 'Easy-Logging-log-file')
 if os.path.exists(log_file):
     try:
-        path_list, user, log = pickle.load( open( log_file, "rb" ) )
+        path_list, user, log = pickle.load(open(log_file, "rb"))
         if not me == user:
             for i, s in enumerate(path_list):
                 new_path = convert_path(user, me, s)
                 path_list.remove(s)
                 path_list.add(new_path)
-    except EOFError: open(log_file, 'a').close()
+    except EOFError:
+        open(log_file, 'a').close()
 else:
     print('Create the metadata file')
     open(log_file, 'a').close()
-    
 
 # --- CLASSES ---------------------------------------------------------------------
 
-# Creating the PANEL    
-class SEQUENCER_HT_iop_panel(bpy.types.Header):     
-    bl_space_type = "SEQUENCE_EDITOR"       
-    bl_region_type = "UI"          
+
+# Creating the PANEL
+class SEQUENCER_HT_iop_panel(bpy.types.Header):
+    bl_space_type = "SEQUENCE_EDITOR"
+    bl_region_type = "UI"
     bl_label = "Trim"
     global main_scene
-    
+
     @classmethod
     def poll(self, context):
         return True
-    
+
     def draw(self, context):
         layout = self.layout
         layout.separator()
         if bpy.context.screen.scene.name == 'Editing table':
-            row=layout.row()
+            row = layout.row()
             row.operator("sequencer.trim", icon="ARROW_LEFTRIGHT")
             layout.separator()
             row.operator("sequencer.setin", icon="TRIA_RIGHT")
@@ -661,21 +738,22 @@ class SEQUENCER_HT_iop_panel(bpy.types.Header):
             row.operator("sequencer.place", icon="PASTEFLIPDOWN")
             row.operator("sequencer.back", icon="LOOP_BACK")
         elif bpy.context.screen.scene.name.startswith('Tag: ') and main_scene:
-            row=layout.row()
+            row = layout.row()
             row.operator("sequencer.place", icon="PASTEFLIPDOWN")
             row.operator("sequencer.back", icon="LOOP_BACK")
         else:
-            row=layout.row()
+            row = layout.row()
             row.operator("sequencer.import", icon="ZOOMIN")
             row.operator("sequencer.trim", icon="ARROW_LEFTRIGHT")
-            row.prop(context.scene,"local_edit")
+            row.prop(context.scene, "local_edit")
+
 
 # Creating the Place button operator - 2.0
-class OBJECT_OT_Place(bpy.types.Operator):  
+class OBJECT_OT_Place(bpy.types.Operator):
     bl_label = "Place"
     bl_idname = "sequencer.place"
     bl_description = "Place the clip in the timeline"
-        
+
     def invoke(self, context, event):
         global main_scene
         if main_scene:
@@ -692,25 +770,28 @@ class OBJECT_OT_Place(bpy.types.Operator):
                 update_log()
                 trim_area(scene, inpoint, outpoint)
                 # if metastrip is needed
-                if meta() :
+                if meta():
                     # make metastrip
-                    bpy.ops.sequencer.select_all(action = "SELECT")
+                    bpy.ops.sequencer.select_all(action="SELECT")
                     bpy.ops.sequencer.meta_make()
-                    bpy.ops.sequencer.select_all(action = "SELECT")
+                    bpy.ops.sequencer.select_all(action="SELECT")
                 else:
                     # select everything except tag strips
-                    bpy.ops.sequencer.select_all(action = "DESELECT")
+                    bpy.ops.sequencer.select_all(action="DESELECT")
                     for s in context.scene.sequence_editor.sequences_all:
                         if s.type != 'COLOR':
                             s.select = True
                 bpy.ops.sequencer.copy()
                 goto_main_scene()
-                try : bpy.ops.sequencer.select_all(action = "DESELECT")
-                except : pass #nothing to deselect
+                try:
+                    bpy.ops.sequencer.select_all(action="DESELECT")
+                except:
+                    pass  #nothing to deselect
                 bpy.ops.sequencer.paste()
                 zoom(3)
-                bpy.context.scene.frame_current = bpy.context.scene.frame_current + (outpoint-inpoint)
-                
+                bpy.context.scene.frame_current = bpy.context.scene.frame_current + (
+                    outpoint - inpoint)
+
                 # clean up
                 reset_editing_table()
                 if main_scene.local_edit == False:
@@ -720,7 +801,7 @@ class OBJECT_OT_Place(bpy.types.Operator):
                     goto_main_scene()
                 return {'FINISHED'}
             # Tag-scene context
-            else :
+            else:
                 print("Tag-scene context")
                 tag_strip = bpy.context.scene.sequence_editor.active_strip
                 inpoint = tag_strip.frame_final_start
@@ -731,21 +812,24 @@ class OBJECT_OT_Place(bpy.types.Operator):
                 bpy.ops.scene.new(type='FULL_COPY')
                 temp_scene = bpy.context.screen.scene
                 trim_area(temp_scene, inpoint, outpoint)
-                bpy.ops.sequencer.select_all(action = "SELECT")
+                bpy.ops.sequencer.select_all(action="SELECT")
                 bpy.ops.sequencer.copy()
                 bpy.ops.scene.delete()
                 goto_main_scene()
                 bpy.ops.sequencer.paste()
-                bpy.context.scene.frame_current = bpy.context.scene.frame_current + (outpoint-inpoint)
+                bpy.context.scene.frame_current = bpy.context.scene.frame_current + (
+                    outpoint - inpoint)
                 bpy.ops.sequencer.view_selected()
                 return {'FINISHED'}
 
+
 # Creating the IMPORT button operator - 2.0
-class OBJECT_OT_import(bpy.types.Operator): 
+class OBJECT_OT_import(bpy.types.Operator):
     bl_label = "Import clip"
     bl_idname = "sequencer.import"
     bl_description = "Import the selected clip in the browser"
-    global main_scene  
+    global main_scene
+
     def invoke(self, context, event):
 
         for a in bpy.context.window.screen.areas:
@@ -760,9 +844,10 @@ class OBJECT_OT_import(bpy.types.Operator):
         try:
             if the_file == '':
                 return {'FINISHED'}
-        except : return {'FINISHED'}
+        except:
+            return {'FINISHED'}
 
-        exists,id = clip_exists(clip)
+        exists, id = clip_exists(clip)
         if exists:
             clip_object = get_clip(clip)
             inpoint = clip_object[1]
@@ -770,25 +855,28 @@ class OBJECT_OT_import(bpy.types.Operator):
 
             if bpy.context.screen.scene.name != 'Editing table':
                 set_as_main_scene()
-            
-            import_clip(main_scene,clip,inpoint,outpoint, False)
+
+            import_clip(main_scene, clip, inpoint, outpoint, False)
         else:
             try:
-                bpy.ops.sequencer.movie_strip_add(filepath=clip, frame_start=bpy.context.scene.frame_current)
-            except: pass
+                bpy.ops.sequencer.movie_strip_add(
+                    filepath=clip, frame_start=bpy.context.scene.frame_current)
+            except:
+                pass
 
         return {'FINISHED'}
 
+
 # Creating the TRIM (EDIT) button operator - 2.0
-class OBJECT_OT_Trim(bpy.types.Operator): 
+class OBJECT_OT_Trim(bpy.types.Operator):
     bl_label = "Edit clip"
     bl_idname = "sequencer.trim"
     bl_description = "Trim the selected clip in the browser"
-    
+
     def invoke(self, context, event):
         global main_scene, clip, clip_object
-        
-         # set current scene as main scene
+
+        # set current scene as main scene
         if bpy.context.screen.scene.name != 'Editing table':
             set_as_main_scene()
         else:
@@ -807,15 +895,16 @@ class OBJECT_OT_Trim(bpy.types.Operator):
         try:
             if the_file == '':
                 return {'FINISHED'}
-        except : return {'FINISHED'}
+        except:
+            return {'FINISHED'}
 
         file_type = detect_strip_type(clip)
-        if (file_type not in "MOVIE SOUND") :
+        if (file_type not in "MOVIE SOUND"):
             return {'FINISHED'}
 
         #create the log scene if it doesn't already exist
         reset_editing_table()
-        
+
         # Go to log scene, import the file and set start/end if exists
         bpy.context.screen.scene = bpy.data.scenes['Editing table']
 
@@ -842,37 +931,41 @@ class OBJECT_OT_Trim(bpy.types.Operator):
             else:
                 start = 1
                 end = bpy.context.scene.sequence_editor.active_strip.frame_final_duration
-                add_clip(clip, start,end)
-            bpy.data.scenes['Editing table'].frame_start = start if start > 0 else 1
-            bpy.data.scenes['Editing table'].frame_end = end if end > 1 else bpy.context.scene.sequence_editor.active_strip.frame_final_duration
+                add_clip(clip, start, end)
+            bpy.data.scenes[
+                'Editing table'].frame_start = start if start > 0 else 1
+            bpy.data.scenes[
+                'Editing table'].frame_end = end if end > 1 else bpy.context.scene.sequence_editor.active_strip.frame_final_duration
             # add existing tags linked to the clip
             if len(tags) > 0:
                 for x in tags:
-                    new_tag_strip(x[1],x[2],x[0])
+                    new_tag_strip(x[1], x[2], x[0])
 
-        bpy.ops.sequencer.select_all(action = "SELECT")
+        bpy.ops.sequencer.select_all(action="SELECT")
         bpy.ops.sequencer.view_selected()
         return {'FINISHED'}
-  
+
+
 # creating the ADD TAG button operator - 2.0
-class OBJECT_OT_addTag(bpy.types.Operator): 
+class OBJECT_OT_addTag(bpy.types.Operator):
     bl_label = "Add Tag"
     bl_idname = "sequencer.addtag"
     bl_description = "Add a new tag to the clip"
-        
+
     def invoke(self, context, event):
-        bpy.ops.sequencer.select_all(action = "DESELECT")
+        bpy.ops.sequencer.select_all(action="DESELECT")
         inpoint = bpy.data.scenes['Editing table'].frame_current
         outpoint = inpoint + 50
-        new_tag_strip(inpoint,outpoint,'new-tag')
+        new_tag_strip(inpoint, outpoint, 'new-tag')
         return {'FINISHED'}
 
+
 # creating the SET IN&OUT button operator - 2.0
-class OBJECT_OT_setInOut(bpy.types.Operator): 
+class OBJECT_OT_setInOut(bpy.types.Operator):
     bl_label = "Set In & Out"
     bl_idname = "sequencer.setinout"
     bl_description = "Use selected tag strip to set the In and Out points of the editing table"
-        
+
     def invoke(self, context, event):
         tag_strip = bpy.context.scene.sequence_editor.active_strip
         inpoint = tag_strip.frame_final_start
@@ -883,43 +976,47 @@ class OBJECT_OT_setInOut(bpy.types.Operator):
             update_clip(clip, inpoint, outpoint)
         return {'FINISHED'}
 
+
 # creating the IN button operator - 2.0
-class OBJECT_OT_Setin(bpy.types.Operator): 
+class OBJECT_OT_Setin(bpy.types.Operator):
     bl_label = "IN"
     bl_idname = "sequencer.setin"
     bl_description = "Set the IN point of the clip"
-    
+
     def invoke(self, context, event):
         global clip
         if bpy.context.screen.scene == bpy.data.scenes['Editing table']:
             inpoint = bpy.context.scene.frame_current
             bpy.data.scenes['Editing table'].frame_start = inpoint
-            update_inpoint(clip,inpoint)
+            update_inpoint(clip, inpoint)
         return {'FINISHED'}
-        
-# creating the OUT button operator - 2.0  
-class OBJECT_OT_Setout(bpy.types.Operator):  
+
+
+# creating the OUT button operator - 2.0
+class OBJECT_OT_Setout(bpy.types.Operator):
     bl_label = "OUT"
     bl_idname = "sequencer.setout"
     bl_description = "Set the OUT point of the clip"
-        
+
     def invoke(self, context, event):
         global clip
         clip_object = get_clip(clip)
         if bpy.context.screen.scene == bpy.data.scenes['Editing table']:
             outpoint = bpy.context.scene.frame_current
             bpy.data.scenes['Editing table'].frame_end = outpoint + 1
-            update_outpoint(clip,outpoint)           
+            update_outpoint(clip, outpoint)
             if clip_object[1] < 1:
                 inpoint = 1
-                update_inpoint(clip,inpoint)
+                update_inpoint(clip, inpoint)
         return {'FINISHED'}
 
-# creating the back button operator - 2.0 
-class OBJECT_OT_Back(bpy.types.Operator):  
+
+# creating the back button operator - 2.0
+class OBJECT_OT_Back(bpy.types.Operator):
     bl_label = "Back to Sequence"
     bl_idname = "sequencer.back"
     bl_description = "Go back to the main sequence"
+
     def invoke(self, context, event):
         global main_scene
         if bpy.context.screen.scene.name == 'Editing table':
@@ -927,53 +1024,68 @@ class OBJECT_OT_Back(bpy.types.Operator):
         goto_main_scene()
         return {'FINISHED'}
 
-# creating the menu "create log file" operator   
+
+# creating the menu "create log file" operator
 class SEQUENCER_OT_createlog(bpy.types.Operator):
     bl_idname = "sequencer.createlog"
     bl_label = "Create the log file"
+
     def execute(self, context):
         #create_the_log_file()
         return {'FINISHED'}
 
-# creating the tag scene menu operator        
+
+# creating the tag scene menu operator
 class SEQUENCER_OT_create_tag_scenes(bpy.types.Operator):
     bl_idname = "sequencer.createtagtcenes"
     bl_label = "Create the tag scenes"
+
     @classmethod
     def poll(cls, context):
         return ('Tag:' not in bpy.context.screen.scene.name)
+
     def execute(self, context):
         create_tag_scenes()
         return {'FINISHED'}
+
 
 # creating the create new log file operator
 class SEQUENCER_OT_create_new_log_file(bpy.types.Operator):
     bl_idname = "sequencer.createnewlogfile"
     bl_label = "Create a new log file"
+
     def execute(self, context):
         create_new_log_file()
         return {'FINISHED'}
+
 
 # creating the delete tag-scenes operator
 class SEQUENCER_OT_delete_tag_scenes(bpy.types.Operator):
     bl_idname = "sequencer.deletetagscenes"
     bl_label = "Delete the tag-scenes"
+
     @classmethod
     def poll(cls, context):
         return ('Tag:' not in bpy.context.screen.scene.name)
+
     def execute(self, context):
         delete_the_tag_scenes()
         return {'FINISHED'}
+
 
 # creating the log text operator
 class SEQUENCER_OT_create_log_text(bpy.types.Operator):
     bl_idname = "sequencer.createlogtext"
     bl_label = "Create the log document"
+
     def execute(self, context):
         #Create the file
-        the_time = (time.strftime("%d/%m/%Y")) + ' - ' + (time.strftime("%H:%M:%S"))
+        the_time = (time.strftime("%d/%m/%Y")) + ' - ' + (
+            time.strftime("%H:%M:%S"))
         log_text = bpy.data.texts.new('Log document')
-        log_text.write(u('EASY LOGGING - LOG FILE  Author: ' + user + ' -- ' + the_time) + '\n')
+        log_text.write(
+            u('EASY LOGGING - LOG FILE  Author: ' + user + ' -- ' + the_time) +
+            '\n')
         log_text.write('\n' + u('CLIPS BY TAGS') + '\n')
         log_create_tags_list()
         log_text.write(log_clips_for_tag())
@@ -981,7 +1093,9 @@ class SEQUENCER_OT_create_log_text(bpy.types.Operator):
         log_text.write(log_list_of_clips())
         return {'FINISHED'}
 
+
 # -- MENU EASY LOGGING ----------------------------------------------------
+
 
 class EasyLog(bpy.types.Menu):
     bl_label = "Easy Logging"
@@ -990,21 +1104,38 @@ class EasyLog(bpy.types.Menu):
     def draw(self, context):
         layout = self.layout
 
+
 def draw_item(self, context):
     layout = self.layout
     layout.menu(EasyLog.bl_idname)
-                 
+
+
 def createTagScene_func(self, context):
-    self.layout.operator(SEQUENCER_OT_create_tag_scenes.bl_idname, text="Build the tag scenes", icon='OOPS')
+    self.layout.operator(
+        SEQUENCER_OT_create_tag_scenes.bl_idname,
+        text="Build the tag scenes",
+        icon='OOPS')
+
 
 def deleteTagScene_func(self, context):
-    self.layout.operator(SEQUENCER_OT_delete_tag_scenes.bl_idname, text="Delete the tag scenes", icon='CANCEL')
+    self.layout.operator(
+        SEQUENCER_OT_delete_tag_scenes.bl_idname,
+        text="Delete the tag scenes",
+        icon='CANCEL')
+
 
 def createLogText_func(self, context):
-    self.layout.operator(SEQUENCER_OT_create_log_text.bl_idname, text="Create the log document", icon='LINENUMBERS_ON')
+    self.layout.operator(
+        SEQUENCER_OT_create_log_text.bl_idname,
+        text="Create the log document",
+        icon='LINENUMBERS_ON')
+
 
 def createNewLogfile_func(self, context):
-    self.layout.operator(SEQUENCER_OT_create_new_log_file.bl_idname, text="Create a new log file", icon='FILE_SCRIPT')    
+    self.layout.operator(
+        SEQUENCER_OT_create_new_log_file.bl_idname,
+        text="Create a new log file",
+        icon='FILE_SCRIPT')
 
 
 classes = (
@@ -1023,20 +1154,20 @@ classes = (
     SEQUENCER_OT_delete_tag_scenes,
     SEQUENCER_OT_create_log_text,
     EasyLog,
-    )
+)
 
 
-# ----------------- Registration -------------------     
+# ----------------- Registration -------------------
 def register():
     for cls in classes:
         register_class(cls)
     bpy.types.Scene.headerColor = bpy.props.FloatVectorProperty(
-                                     name = "Display Color",
-                                     subtype = "COLOR",
-                                     size = 4,
-                                     min = 0.0,
-                                     max = 1.0,
-                                     default = (0.355,0.366,0.57,1.0))
+        name="Display Color",
+        subtype="COLOR",
+        size=4,
+        min=0.0,
+        max=1.0,
+        default=(0.355, 0.366, 0.57, 1.0))
     bpy.types.INFO_HT_header.append(header_refresh)
     bpy.types.INFO_HT_header.append(draw_item)
     bpy.types.OBJECT_MT_easy_log.append(createTagScene_func)
@@ -1044,19 +1175,24 @@ def register():
     bpy.types.OBJECT_MT_easy_log.append(createLogText_func)
     bpy.types.OBJECT_MT_easy_log.append(createNewLogfile_func)
 
+
 def unregister():
     for cls in reversed(classes):
         unregister_class(cls)
     bpy.types.INFO_HT_header.remove(header_refresh)
     bpy.types.INFO_HT_header.remove(draw_item)
-    bpy.context.preferences.themes[0].info.space.header = (0.447,0.447,0.447,1.0)
+    bpy.context.preferences.themes[0].info.space.header = (0.447, 0.447, 0.447,
+                                                           1.0)
     del bpy.types.Scene.headerColor
+
 
 if __name__ == "__main__":
     register()
 
 
-def updateStringParameter(self,context):
+def updateStringParameter(self, context):
     print(self.my_string)
-def updateIntParameter(self,context):
+
+
+def updateIntParameter(self, context):
     print(self.my_int)
